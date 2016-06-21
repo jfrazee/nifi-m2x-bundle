@@ -35,6 +35,7 @@ import com.squareup.okhttp.ResponseBody;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.joda.JodaModule;
 
 import org.joda.time.DateTime;
@@ -68,6 +69,15 @@ import org.apache.nifi.processor.util.StandardValidators;
 
 @Tags({"M2X", "ATT", "AT&T", "IoT"})
 @CapabilityDescription("Get messages from an M2X device data stream")
+@WritesAttributes({
+    @WritesAttribute(attribute = "m2x.device.id", description = "The M2X device id"),
+    @WritesAttribute(attribute = "m2x.stream.name", description = "The M2X stream name"),
+    @WritesAttribute(attribute = "m2x.stream.start", description = "An ISO 8601 timestamp specifying the start of the date range that was read from"),
+    @WritesAttribute(attribute = "m2x.stream.end", description = "An ISO 8601 timestamp specifying the end of the date range that was read from"),
+    @WritesAttribute(attribute = "m2x.stream.limit", description = "The maximum number of values that was requested to be returned"),
+    @WritesAttribute(attribute = "m2x.stream.value.timestamp", description = "An ISO 8601 timestamp of the data value"),
+    @WritesAttribute(attribute = "m2x.stream.value.millis", description = "The time of the data value in milliseconds")
+})
 @InputRequirement(Requirement.INPUT_FORBIDDEN)
 @Stateful(scopes = {Scope.LOCAL}, description = "When reading from the M2X" +
     "data stream, the timestamp is stored so the next time reading will " +
@@ -182,6 +192,7 @@ public class GetM2XStream extends AbstractM2XProcessor {
         final String apiUrl = context.getProperty(M2X_API_URL).getValue();
         final String deviceId = context.getProperty(M2X_DEVICE_ID).getValue();
         final String streamName = context.getProperty(M2X_STREAM_NAME).getValue();
+        final String streamType = context.getProperty(M2X_STREAM_TYPE).getValue();
         final String startTime = getLastStartTime(context, stateManager);
         final String streamUrl = getStreamUrl(apiUrl, deviceId, streamName, startTime);
 
@@ -206,6 +217,7 @@ public class GetM2XStream extends AbstractM2XProcessor {
 
         final ObjectMapper mapper = new ObjectMapper();
         mapper.registerModule(new JodaModule());
+        mapper.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS , false);
 
         try {
             final M2XStreamValues m2xValues = mapper.readValue(responseBody, M2XStreamValues.class);

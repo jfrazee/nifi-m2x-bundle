@@ -29,6 +29,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 import org.joda.time.DateTime;
+import org.joda.time.format.ISODateTimeFormat;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @Generated("org.jsonschema2pojo")
@@ -65,6 +66,10 @@ public class M2XStreamValue<T> {
     @JsonProperty("timestamp")
     public void setTimestamp(DateTime timestamp) {
         this.timestamp = timestamp;
+    }
+
+    public void setTimestamp(String timestamp) {
+        setTimestamp(ISODateTimeFormat.dateTime().parseDateTime(timestamp));
     }
 
     /**

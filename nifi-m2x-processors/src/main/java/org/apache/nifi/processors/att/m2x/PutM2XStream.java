@@ -37,6 +37,7 @@ import com.squareup.okhttp.ResponseBody;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.joda.JodaModule;
 
 import org.joda.time.DateTime;
@@ -71,6 +72,9 @@ import org.apache.nifi.processor.util.StandardValidators;
 
 @Tags({"M2X", "ATT", "AT&T", "IoT"})
 @CapabilityDescription("Push messages to a M2X device data stream")
+@ReadsAttributes({
+    @ReadsAttribute(attribute = "m2x.stream.value.timestamp", description = "The ISO 8601 timestamp of the data value. Defaults to the FlowFile entry date.")
+})
 public class PutM2XStream extends AbstractM2XProcessor {
     public static final MediaType MEDIA_TYPE_JSON = MediaType.parse("application/json; charset=utf-8");
 
@@ -101,13 +105,6 @@ public class PutM2XStream extends AbstractM2XProcessor {
 
     private Set<Relationship> relationships;
 
-    private String encodeFlowFile(FlowFile flowFile) {
-        final ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JodaModule());
-
-        return "{\"value\":\"foo\"}";
-    }
-
     @Override
     protected void init(final ProcessorInitializationContext context) {
         super.init(context);
@@ -136,7 +133,7 @@ public class PutM2XStream extends AbstractM2XProcessor {
 
     @Override
     public void onTrigger(final ProcessContext context, final ProcessSession session) throws ProcessException {
-        FlowFile flowFile = session.get();
+        final FlowFile flowFile = session.get();
         if (flowFile == null) {
             return;
         }
@@ -148,6 +145,7 @@ public class PutM2XStream extends AbstractM2XProcessor {
         final String apiUrl = context.getProperty(M2X_API_URL).getValue();
         final String deviceId = context.getProperty(M2X_DEVICE_ID).getValue();
         final String streamName = context.getProperty(M2X_STREAM_NAME).getValue();
+        final String streamType = context.getProperty(M2X_STREAM_TYPE).getValue();
         final String streamUrl = new StringBuilder().append(apiUrl.replaceAll("/*$", ""))
             .append("/devices/")
             .append(deviceId)
@@ -162,14 +160,22 @@ public class PutM2XStream extends AbstractM2XProcessor {
                 @Override
                 public void process(InputStream is) {
                     try {
+                        String timestamp = flowFile.getAttribute("m2x.stream.value.timestamp");
+                        if (StringUtils.isEmpty(timestamp)) {
+                            timestamp = ISODateTimeFormat.dateTime().print(flowFile.getEntryDate());
+                        }
                         final String value = IOUtils.toString(is, StandardCharsets.UTF_8);
+
                         final M2XStreamValue m2xValue = new M2XStreamValue();
                         m2xValue.setValue(value);
+                        m2xValue.setTimestamp(timestamp);
 
                         final ObjectMapper mapper = new ObjectMapper();
                         mapper.registerModule(new JodaModule());
+                        mapper.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS , false);
 
                         final String postBody = mapper.writeValueAsString(m2xValue);
+                        logger.warn("POST body is {}", new Object[]{postBody});
                         postBodyRef.set(postBody);
                     }
                     catch (Exception e) {

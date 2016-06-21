@@ -66,6 +66,21 @@ import org.apache.nifi.processor.exception.ProcessException;
 import org.apache.nifi.processor.util.StandardValidators;
 
 public abstract class AbstractM2XProcessor extends AbstractProcessor {
+    public static final String M2X_NUMERIC_STREAM = "numeric";
+    public static final String M2X_TEXT_STREAM = "text/plain";
+    public static final String M2X_JSON_STREAM = "application/json";
+
+    public static final PropertyDescriptor M2X_STREAM_TYPE = new PropertyDescriptor
+            .Builder()
+            .name("m2x-stream-type")
+            .displayName("Stream Type")
+            .description("The M2X stream type")
+            .required(true)
+            .defaultValue(M2X_TEXT_STREAM)
+            .allowableValues(M2X_NUMERIC_STREAM, M2X_TEXT_STREAM, M2X_JSON_STREAM)
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .build();
+
     public static final PropertyDescriptor M2X_API_KEY = new PropertyDescriptor
             .Builder()
             .name("m2x-api-key")
@@ -104,6 +119,7 @@ public abstract class AbstractM2XProcessor extends AbstractProcessor {
     @Override
     protected void init(final ProcessorInitializationContext context) {
         final List<PropertyDescriptor> descriptors = new ArrayList<PropertyDescriptor>();
+        descriptors.add(M2X_STREAM_TYPE);
         descriptors.add(M2X_API_KEY);
         descriptors.add(M2X_API_URL);
         this.descriptors = Collections.unmodifiableList(descriptors);
